@@ -1,0 +1,232 @@
+/* --- Reset e Configurações Globais --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden; /* Evita scroll duplo no body */
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #39b6b0, #2fa7a1);
+    display: flex;
+}
+
+.wrapper {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+}
+
+/* --- Menu Lateral (Sidebar) --- */
+.sidebar {
+    width: 220px;
+    background-color: #0a1929;
+    color: white;
+    overflow-y: auto;
+    flex-shrink: 0;
+    border-right: 2px solid #1a3a52;
+    box-shadow: 4px 0 10px rgba(0,0,0,0.2);
+}
+
+.menu-principal {
+    list-style: none;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background-color: #0a1929;
+    border-bottom: 1px solid #1a3a52;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.menu-item:hover {
+    background-color: #1a3a52;
+}
+
+.menu-text {
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
+}
+
+.menu-arrow {
+    font-size: 10px;
+    transition: transform 0.3s ease;
+}
+
+.has-submenu.expanded > .menu-item .menu-arrow {
+    transform: rotate(-180deg);
+}
+
+/* Submenus */
+.submenu-ano, .submenu-mes {
+    list-style: none;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out;
+    background-color: #0d1e31;
+}
+
+.submenu-ano.active, .submenu-mes.active {
+    max-height: 2000px; /* Valor alto para permitir expansão total */
+}
+
+/* Estilo dos Dias no Menu */
+.menu-dia {
+    display: block;
+    padding: 10px 15px 10px 45px;
+    color: #b0b0b0;
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 4px solid transparent;
+    transition: all 0.2s;
+}
+
+.menu-dia:hover {
+    background-color: #1a3a52;
+    color: #7ed957;
+    padding-left: 50px;
+}
+
+/* ESTADO SELECIONADO: Data com cor forte no menu */
+.menu-dia.selecionado {
+    background-color: #1a3a52;
+    color: #7ed957 !important;
+    font-weight: bold;
+    border-left: 4px solid #7ed957;
+}
+
+/* --- Conteúdo Principal --- */
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Título da Data Selecionada */
+#data-titulo {
+    background-color: #0a1929;
+    color: #7ed957;
+    padding: 12px 40px;
+    border-radius: 50px;
+    font-size: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border: 2px solid #1a3a52;
+    text-align: center;
+}
+
+.container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+/* --- Tabela de Dados --- */
+table {
+    border-collapse: collapse;
+    background: white;
+    min-width: 950px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    font-size: 13px;
+}
+
+/* Cabeçalho da Tabela */
+thead th {
+    background-color: #f8f9fa;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.titulo {
+    background-color: #ececec;
+    font-size: 15px;
+}
+
+.horario {
+    background-color: #7ed957;
+    color: #0a1929;
+    font-weight: bold;
+}
+
+/* COLUNA SETORES: Azul escuro com texto branco */
+.itens {
+    text-align: left;
+    padding-left: 15px;
+    font-weight: bold;
+    background-color: #22456b !important;
+    color: white !important;
+    min-width: 220px;
+}
+
+/* Inputs de Peso */
+input[type="number"] {
+    width: 75px;
+    padding: 6px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+input[type="number"]:focus {
+    border-color: #39b6b0;
+    box-shadow: 0 0 5px rgba(57, 182, 176, 0.5);
+}
+
+/* Colunas de Totais */
+.col-total, .total-linha {
+    background-color: #3aa6d0;
+    color: white;
+    font-weight: bold;
+}
+
+.soma-row td {
+    background-color: #ff4d4d; /* Vermelho para destaque da soma total */
+    color: white;
+    font-weight: bold;
+    font-size: 15px;
+}
+
+.soma-row td:last-child, #soma-geral {
+    background-color: #0a1929;
+    color: #7ed957;
+}
+
+/* Scrollbar Customizado */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: #1a3a52;
+    border-radius: 10px;
+}
+
+/* Responsividade Básica */
+@media (max-width: 1100px) {
+    table { min-width: 100%; }
+    .sidebar { width: 180px; }
+}
