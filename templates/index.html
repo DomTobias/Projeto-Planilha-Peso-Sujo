@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mensal.css') }}">
     <title>Controle de Peso Sujo</title>
 </head>
 <body>
@@ -15,70 +16,79 @@
                         <span class="menu-text">2026</span>
                         <span class="menu-arrow">▼</span>
                     </div>
-                    <ul class="submenu-ano" id="menu-datas"></ul>
+                    <ul class="submenu-ano active" id="menu-datas"></ul>
                 </li>
             </ul>
         </nav>
 
-        <div class="main-content">
-            <h2 id="data-titulo">Selecione uma data</h2>
-            <br>
-
-            <div class="container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th rowspan="2">SETORES</th>
-                            <th colspan="5" class="titulo">PESO SUJO - HORÁRIO</th>
-                            <th rowspan="2" class="col-total">TOTAL</th>
-                        </tr>
-                        <tr>
-                            <th class="horario">05:30</th>
-                            <th class="horario">08:00</th>
-                            <th class="horario">13:00</th>
-                            <th class="horario">16:00</th>
-                            <th class="horario">20:00</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabela-corpo"></tbody>
-                    <tfoot>
-                        <tr class="soma-row" id="linha-totais">
-                            <td>SOMA TOTAL</td>
-                            <td data-col="0">0.00</td>
-                            <td data-col="1">0.00</td>
-                            <td data-col="2">0.00</td>
-                            <td data-col="3">0.00</td>
-                            <td data-col="4">0.00</td>
-                            <td id="soma-geral">0.00</td>
-                        </tr>
-                    </tfoot>
-                </table>
+        <main class="main-content">
+            <div id="welcome-screen" class="welcome-container">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo da Empresa" class="logo">
+                <h1>REGISTRO PESO SUJO</h1>
+                <p>Selecione uma data ou um mês no menu ao lado para começar</p>
             </div>
-        </div>
+
+            <div id="data-content" style="display: none; width: 100%;">
+                <div class="header-tabela">
+                    <h2 id="data-titulo">Data: --/--/----</h2>
+                </div>
+                <div class="container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th rowspan="2">SETORES</th>
+                                <th colspan="5" class="titulo">PESO SUJO - HORÁRIO</th>
+                                <th rowspan="2" class="col-total">TOTAL</th>
+                            </tr>
+                            <tr>
+                                <th class="horario">05:30</th>
+                                <th class="horario">08:00</th>
+                                <th class="horario">13:00</th>
+                                <th class="horario">16:00</th>
+                                <th class="horario">20:00</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-corpo"></tbody>
+                        <tfoot>
+                            <tr class="soma-row" id="linha-totais">
+                                <td>SOMA TOTAL</td>
+                                <td data-col="0">0.00</td>
+                                <td data-col="1">0.00</td>
+                                <td data-col="2">0.00</td>
+                                <td data-col="3">0.00</td>
+                                <td data-col="4">0.00</td>
+                                <td id="soma-geral">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div id="month-content" style="display: none; width: 100%;">
+                <div class="header-tabela">
+                    <h2 id="mes-titulo">Resumo Mensal</h2>
+                    <button id="btn-exportar" class="btn-verde">Exportar para Excel</button>
+                </div>
+                <div class="container">
+                    <table class="tabela-mensal">
+                        <thead>
+                            <tr>
+                                <th>SETOR</th>
+                                <th>SOMA TOTAL ACUMULADA (KG)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-mensal-corpo"></tbody>
+                        <tfoot>
+                            <tr class="soma-row">
+                                <td>TOTAL GERAL DO MÊS</td>
+                                <td id="soma-geral-mes">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </main>
     </div>
-
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-
-    <script>
-    // Dentro da sua função de clique na data:
-        document.querySelectorAll('.menu-dia').forEach(link => {
-            link.addEventListener('click', async (e) => {
-                e.preventDefault();
-                
-                // 1. Remover destaque de todas as datas
-                document.querySelectorAll('.menu-dia').forEach(el => el.classList.remove('selecionado'));
-                
-                // 2. Adicionar destaque na data clicada
-                e.target.classList.add('selecionado');
-                
-                // 3. Atualizar o Título no topo
-                dataSelecionada = e.target.dataset.dia;
-                document.getElementById('data-titulo').innerText = `Data: ${dataSelecionada}`;
-                
-                // 4. Carregar os dados do banco (seu fetch atual...)
-                carregarDadosDoBanco(dataSelecionada);
-            });
-        });
-    </script>
 </body>
 </html>
