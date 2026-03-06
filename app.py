@@ -3,6 +3,9 @@ import sqlite3
 import os
 import pandas as pd
 from io import BytesIO
+from calendar import monthrange
+from datetime import datetime
+from openpyxl.styles import PatternFill, Alignment, Font, Border, Side
 
 app = Flask(__name__)
 DATABASE = 'controle_peso.db'
@@ -83,58 +86,193 @@ def get_consolidado_mes(ano, mes):
 @app.route('/api/exportar/<ano>/<mes>')
 def exportar_excel(ano, mes):
     db = get_db()
-    
-    query_detalhado = '''
-        SELECT r.data as Data, s.nome as Setor, h.descricao as Horario, p.peso as Peso
-        FROM pesos p
-        JOIN setores s ON p.setor_id = s.id
-        JOIN horarios h ON p.horario_id = h.id
-        JOIN registros_dia r ON p.registro_id = r.id
-        WHERE r.data LIKE ?
-        ORDER BY r.data, s.nome, h.descricao
-    '''
-    filtro = f'%-{mes}-{ano}'
-    df_detalhado = pd.read_sql_query(query_detalhado, db, params=(filtro,))
-
-    if not df_detalhado.empty:
-        df_pivot = df_detalhado.pivot_table(index=['Data', 'Setor'], columns='Horario', values='Peso', fill_value=0).reset_index()
-        horarios_disponiveis = [h['descricao'] for h in db.execute('SELECT descricao FROM horarios ORDER BY id').fetchall()]
-        for h in horarios_disponiveis:
-            if h not in df_pivot.columns:
-                df_pivot[h] = 0
-        df_pivot['Total Diário por Setor'] = df_pivot[horarios_disponiveis].sum(axis=1)
-        cols = ['Data', 'Setor'] + horarios_disponiveis + ['Total Diário por Setor']
-        df_pivot = df_pivot[cols]
-    else:
-        horarios_disponiveis = [h['descricao'] for h in db.execute('SELECT descricao FROM horarios ORDER BY id').fetchall()]
-        df_pivot = pd.DataFrame(columns=['Data', 'Setor'] + horarios_disponiveis + ['Total Diário por Setor'])
-
-    query_resumo = '''
-        SELECT s.nome as Setor, SUM(p.peso) as 'Total Peso (KG)'
-        FROM pesos p
-        JOIN setores s ON p.setor_id = s.id
-        JOIN registros_dia r ON p.registro_id = r.id
-        WHERE r.data LIKE ?
-        GROUP BY s.nome
-    '''
-    df_resumo = pd.read_sql_query(query_resumo, db, params=(filtro,))
-    
-    if df_resumo.empty:
-        df_resumo = pd.DataFrame(columns=['Setor', 'Total Peso (KG)'])
-    
-    total_geral_mes = df_resumo['Total Peso (KG)'].sum()
-    df_resumo.loc[len(df_resumo)] = ['TOTAL GERAL DO MÊS', total_geral_mes]
-
+    setores = db.execute("SELECT id, nome FROM setores ORDER BY id").fetchall()
+    colunas_horarios = ["05:30", "08:00", "13:00", "16:00", "20:00"]
+    dias_mes = monthrange(int(ano), int(mes))[1]
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_pivot.to_excel(writer, index=False, sheet_name=f'Detalhes_{mes}_{ano}')
-        df_resumo.to_excel(writer, index=False, sheet_name=f'Resumo_{mes}_{ano}')
+
+    # --- Configurações de Estilo ---
+    fill_fundo_geral = PatternFill(start_color="00A4A7", end_color="00A4A7", fill_type="solid")
+    fill_header_cinza = PatternFill(start_color="C0C0C0", end_color="C0C0C0", fill_type="solid")
+    fill_verde = PatternFill(start_color="00B050", end_color="00B050", fill_type="solid")
+    fill_azul_claro = PatternFill(start_color="5B9BD5", end_color="5B9BD5", fill_type="solid")
+    fill_branco = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
     
+    font_bold = Font(bold=True)
+    center_align = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'), 
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    def aplicar_layout_base(ws, titulo_superior):
+        # Pintar fundo da planilha
+        for r in range(1, 100):
+            for c in range(1, 20):
+                ws.cell(row=r, column=c).fill = fill_fundo_geral
+        
+        ws.column_dimensions['A'].width = 1.1 # ~13px
+        ws.column_dimensions['B'].width = 35
+        for col in ['C', 'D', 'E', 'F', 'G', 'H']:
+            ws.column_dimensions[col].width = 12
+
+        # Cabeçalhos
+        ws.merge_cells("B2:H2")
+        ws["B2"].value = titulo_superior
+        for cell in ws["2:2"]: # Aplica borda na linha 2
+            if cell.column >= 2 and cell.column <= 8:
+                cell.fill = fill_header_cinza
+                cell.alignment = center_align
+                cell.font = font_bold
+                cell.border = thin_border
+
+        ws.merge_cells("B3:B4")
+        ws["B3"].value = "ITENS"
+        ws["B3"].fill = fill_header_cinza
+        ws["B3"].alignment = center_align
+        ws["B3"].font = font_bold
+        ws["B3"].border = thin_border
+        ws["B4"].border = thin_border
+
+        ws.merge_cells("C3:G3")
+        ws["C3"].value = "HORARIO"
+        ws["C3"].fill = fill_verde
+        ws["C3"].alignment = center_align
+        ws["C3"].font = font_bold
+        ws["C3"].border = thin_border
+
+        for i, hora in enumerate(colunas_horarios):
+            cell = ws.cell(row=4, column=3+i)
+            cell.value = hora
+            cell.fill = fill_verde
+            cell.alignment = center_align
+            cell.font = Font(underline="single", bold=True)
+            cell.border = thin_border
+
+        ws.merge_cells("H3:H4")
+        ws["H3"].value = "TOTAL ITENS"
+        ws["H3"].fill = fill_azul_claro
+        ws["H3"].alignment = center_align
+        ws["H3"].font = font_bold
+        ws["H3"].border = thin_border
+        ws["H4"].border = thin_border
+
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        
+        # --- 1. ABA RESUMO MENSAL ---
+        ws_resumo = writer.book.create_sheet("RESUMO MENSAL", 0)
+        aplicar_layout_base(ws_resumo, f"TOTAL ACUMULADO - {mes}/{ano}")
+        
+        query_mensal = """
+            SELECT s.nome as setor_nome, h.descricao as hora, SUM(p.peso) as peso_total
+            FROM pesos p 
+            JOIN setores s ON p.setor_id = s.id 
+            JOIN horarios h ON p.horario_id = h.id 
+            JOIN registros_dia r ON p.registro_id = r.id 
+            WHERE r.data LIKE ?
+            GROUP BY s.nome, h.descricao
+        """
+        dados_mes = db.execute(query_mensal, (f"%-{mes}-{ano}",)).fetchall()
+        
+        row_idx = 5
+        totais_colunas = [0, 0, 0, 0, 0] # Para C, D, E, F, G
+        total_geral = 0
+
+        for setor in setores:
+            ws_resumo.cell(row=row_idx, column=2, value=setor["nome"]).fill = fill_branco
+            ws_resumo.cell(row=row_idx, column=2).border = thin_border
+            
+            soma_linha = 0
+            for i, hora in enumerate(colunas_horarios):
+                val = next((d["peso_total"] for d in dados_mes if d["setor_nome"] == setor["nome"] and d["hora"] == hora), 0)
+                cell = ws_resumo.cell(row=row_idx, column=3+i, value=val)
+                cell.fill = fill_branco
+                cell.border = thin_border
+                cell.alignment = center_align
+                soma_linha += val
+                totais_colunas[i] += val
+            
+            cell_total_l = ws_resumo.cell(row=row_idx, column=8, value=soma_linha)
+            cell_total_l.fill = fill_azul_claro
+            cell_total_l.font = font_bold
+            cell_total_l.border = thin_border
+            cell_total_l.alignment = center_align
+            total_geral += soma_linha
+            row_idx += 1
+
+        # Linha de Totais do Mês
+        ws_resumo.cell(row=row_idx, column=2, value="TOTAL GERAL").font = font_bold
+        ws_resumo.cell(row=row_idx, column=2).fill = fill_header_cinza
+        ws_resumo.cell(row=row_idx, column=2).border = thin_border
+        for i, total_col in enumerate(totais_colunas):
+            c = ws_resumo.cell(row=row_idx, column=3+i, value=total_col)
+            c.fill = fill_header_cinza
+            c.font = font_bold
+            c.border = thin_border
+            c.alignment = center_align
+        ws_resumo.cell(row=row_idx, column=8, value=total_geral).fill = fill_azul_claro
+        ws_resumo.cell(row=row_idx, column=8).font = font_bold
+        ws_resumo.cell(row=row_idx, column=8).border = thin_border
+
+        # --- 2. ABAS DIÁRIAS ---
+        for dia in range(1, dias_mes + 1):
+            data_str = f"{dia:02d}-{mes}-{ano}"
+            ws = writer.book.create_sheet(f"{dia:02d}")
+            aplicar_layout_base(ws, f"PESO SUJO - {data_str}")
+            
+            query_dia = """
+                SELECT s.nome as setor_nome, h.descricao as hora, p.peso 
+                FROM pesos p 
+                JOIN setores s ON p.setor_id = s.id 
+                JOIN horarios h ON p.horario_id = h.id 
+                JOIN registros_dia r ON p.registro_id = r.id 
+                WHERE r.data = ?
+            """
+            dados_dia = db.execute(query_dia, (data_str,)).fetchall()
+            
+            row_d = 5
+            totais_dia_col = [0, 0, 0, 0, 0]
+            total_dia_geral = 0
+
+            for setor in setores:
+                ws.cell(row=row_d, column=2, value=setor["nome"]).fill = fill_branco
+                ws.cell(row=row_d, column=2).border = thin_border
+                
+                soma_h = 0
+                for i, hora in enumerate(colunas_horarios):
+                    val = next((d["peso"] for d in dados_dia if d["setor_nome"] == setor["nome"] and d["hora"] == hora), 0)
+                    cell = ws.cell(row=row_d, column=3+i, value=val)
+                    cell.fill = fill_branco
+                    cell.border = thin_border
+                    cell.alignment = center_align
+                    soma_h += val
+                    totais_dia_col[i] += val
+                
+                ws.cell(row=row_d, column=8, value=soma_h).fill = fill_azul_claro
+                ws.cell(row=row_d, column=8).font = font_bold
+                ws.cell(row=row_d, column=8).border = thin_border
+                total_dia_geral += soma_h
+                row_d += 1
+
+            # Linha de Totais do Dia
+            ws.cell(row=row_d, column=2, value="TOTAL DIA").font = font_bold
+            ws.cell(row=row_d, column=2).fill = fill_header_cinza
+            ws.cell(row=row_d, column=2).border = thin_border
+            for i, t_col in enumerate(totais_dia_col):
+                c = ws.cell(row=row_d, column=3+i, value=t_col)
+                c.fill = fill_header_cinza
+                c.font = font_bold
+                c.border = thin_border
+                c.alignment = center_align
+            ws.cell(row=row_d, column=8, value=total_dia_geral).fill = fill_azul_claro
+            ws.cell(row=row_d, column=8).font = font_bold
+            ws.cell(row=row_d, column=8).border = thin_border
+
+    if 'Sheet' in writer.book.sheetnames:
+        writer.book.remove(writer.book['Sheet'])
+        
     output.seek(0)
-    return send_file(output, 
-                     download_name=f'Relatorio_Mensal_Completo_{mes}_{ano}.xlsx',
-                     as_attachment=True,
-                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    return send_file(output, download_name=f"Relatorio_{mes}_{ano}.xlsx", as_attachment=True)
 
 if __name__ == '__main__':
     init_db()
